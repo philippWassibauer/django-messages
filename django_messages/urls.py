@@ -13,5 +13,6 @@ urlpatterns = patterns('',
     url(r'^view/(?P<message_id>[\d]+)/$', view, name='messages_detail'),
     url(r'^delete/(?P<message_id>[\d]+)/$', delete, name='messages_delete'),
     url(r'^undelete/(?P<message_id>[\d]+)/$', undelete, name='messages_undelete'),
+    url(r'^batch-update/$', batch_update, name='messages_batch_update'),
     url(r'^trash/$', trash, name='messages_trash'),
 )

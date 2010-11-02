@@ -1,5 +1,5 @@
 import datetime
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, HttpResponse
 from django.shortcuts import render_to_response, get_object_or_404
 from django.template import RequestContext
 from django.contrib.auth.models import User
@@ -25,8 +25,19 @@ def inbox(request, template_name='django_messages/inbox.html'):
         ``template_name``: name of the template to use.
     """
     message_list = Message.objects.inbox_for(request.user)
+    
+    # filter for read and unread
+    only_read = request.GET.get("only_read", False)
+    only_unread = request.GET.get("only_unread", False)
+    if only_read:
+        message_list = message_list.exclude(read_at=None)
+    elif only_unread:
+        message_list = message_list.filter(read_at=None)
+            
     return render_to_response(template_name, {
         'message_list': message_list,
+        'only_read': only_read,
+        'only_unread': only_unread,
     }, context_instance=RequestContext(request))
 inbox = login_required(inbox)
 
@@ -206,3 +217,41 @@ def view(request, message_id, template_name='django_messages/view.html'):
         'message': message,
     }, context_instance=RequestContext(request))
 view = login_required(view)
+
+def batch_update(request, success_url=None):
+    """
+    Gets an array of message ids which can be either deleted or marked as
+    read/unread
+    """
+    if request.method == "POST":
+        ids = request.POST.getlist("batchupdateids")
+        if ids:
+            messages = Message.objects.filter(pk__in=ids)
+            for message in messages:
+                if request.POST.get("action") == "read":
+                    message.read_at = datetime.datetime.now()
+                elif request.POST.get("action") == "delete":
+                    message.recipient_deleted_at = datetime.datetime.now()
+                elif request.POST.get("action") == "unread":
+                    message.read_at = None
+                message.save()
+        else:
+            raise Http404
+        
+    else:
+        # this should only happen when hacked or developer uses wrong, therefore
+        # return simple message
+        return HttpResponse("Only Post allowed", code=400)
+        
+    if success_url:
+        return HttpResponseRedirect(success_url)
+    else:
+        # either go to last page, or to inbox as fallback
+        referer = request.META.get('HTTP_REFERER', None)
+        if referer:
+            return HttpResponseRedirect(referer)
+        else:
+            return HttpResponseRedirect(reverse("messages_inbox"))
+batch_update = login_required(batch_update)
+
+
