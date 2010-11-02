@@ -87,8 +87,9 @@ class Message(models.Model):
             import notification.models as notification
             notification.send([self.recipient], "messages_received", 
                               {'message': self,})
+            # I dont get this...but I am leaving it in for now
             n = notification.Notice.objects.filter(
-                user=self.recipient).order_by('-pk')[0]
+                recipient=self.recipient).order_by('-pk')[0]
             n.unseen = False
             n.save()
     
